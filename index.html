@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="上传活动海报，自动匹配底部渐变，预览并导出 6 种游戏闪屏素材。">
+<title>游戏闪屏生成器</title>
+<style>
+:root {
+  color-scheme: light; --ink: #192238; --subtle: #58657c; --accent: #364fca; --line: #dce2ed; --soft: #edf1fa;
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: #f1f3f8; }
+button, input { font: inherit; }
+button { color: inherit; cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 21px; line-height: 1.25; }
+h2 { font-size: 17px; }
+h3 { font-size: 13px; }
+ small, .muted { color: var(--subtle); }
+[hidden] { display: none !important; }
+.top { background: white; border-bottom: 1px solid var(--line); }
+.top-inner { max-width: 1520px; margin: auto; padding: 18px 28px; min-height: 78px; }
+.brand { display: flex; align-items: center; gap: 13px; }
+.brand-mark { display: grid; place-items: center; width: 40px; height: 42px; border-radius: 12px; color: white; background: var(--accent); font-size: 23px; }
+.brand small { display: block; margin-top: 3px; }
+.workspace { max-width: 1520px; padding: 24px 28px; margin: 0 auto; display: grid; grid-template-columns: minmax(230px, .88fr) minmax(310px, 1.65fr) minmax(280px, 1fr); gap: 18px; align-items: start; }
+.panel { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 19px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; }
+.drop { position: relative; display: grid; justify-items: center; text-align: center; gap: 4px; padding: 20px 8px; border: 1px dashed #9aa9e1; border-radius: 12px; background: #f6f8ff; cursor: pointer; }
+.drop:is(:focus-within,:hover,.over) { background: #ebf0ff; border-color: var(--accent); }
+.drop input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.upload-mark { display: grid; place-items: center; width: 33px; height: 33px; border-radius: 8px; margin-bottom: 4px; background: #e5ebff; color: #2c43b1; font-size: 20px; line-height: 1; }
+.drop small, .hint { font-size: 12px; }
+.hint { margin: 9px 0 0; }
+.subpanel { border-top: 1px solid #e7ebf3; padding-top: 15px; margin-top: 16px; }
+.source { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.source img { width: 38px; height: 49px; object-fit: contain; background: var(--soft); border-radius: 5px; }
+.source div { min-width: 0; }
+.source strong, .source small { display: block; }
+.source strong { overflow-wrap: anywhere; font-size: 12px; }
+.source small { font-variant-numeric: tabular-nums; }
+.sample, .secondary, .download { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: white; white-space: nowrap; }
+.sample-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.sample { display: grid; gap: 5px; padding: 5px; text-align: left; white-space: normal; }
+.sample img { display: block; width: 100%; aspect-ratio: 1642 / 2611; object-fit: cover; border-radius: 5px; background: var(--soft); }
+.sample strong { font-size: 11px; line-height: 1.35; }
+.sample[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+@media (max-width: 420px) { .sample-list { gap: 5px; } .sample strong { font-size: 10px; } }
+.sample:not(:disabled):hover, .secondary:not(:disabled):hover, .download:not(:disabled):hover { border-color: var(--accent); color: #2c43b1; }
+.gradient-heading, .gradient-choice { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gradient-switch { display: flex; align-items: center; gap: 6px; color: var(--subtle); font-size: 12px; }
+.gradient-switch input { appearance: none; position: relative; width: 32px; height: 18px; margin: 0; border-radius: 12px; background: #8391ac; cursor: pointer; }
+.gradient-switch input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; }
+.gradient-switch input:checked { background: var(--accent); }
+.gradient-switch input:checked::before { transform: translateX(14px); }
+.gradient-switch input:disabled { opacity: .55; cursor: default; }
+.gradient-choice { margin-top: 10px; font-size: 12px; }
+.gradient-choice select { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: white; color: inherit; font: inherit; }
+.swatches { display: flex; gap: 10px; margin-top: 9px; }
+.swatch { flex: 1; min-width: 0; color: var(--subtle); font-size: 10px; white-space: nowrap; }
+.swatch span { display: block; border: 1px solid #19223820; border-radius: 7px; height: 30px; margin-bottom: 3px; }
+.stage { background: var(--soft); min-height: 500px; padding: 22px 12px; border: 1px solid #e5eaf5; border-radius: 12px; display: grid; place-items: center; }
+.device { display: grid; place-items: center; background: #1c2538; padding: 5px; border-radius: 12px; box-shadow: 0 9px 21px #1625442b; max-width: 100%; }
+.device canvas { display: block; height: min(55vh, 520px); width: auto; max-width: 100%; border-radius: 7px; object-fit: contain; }
+.device.square canvas { height: auto; width: min(100%, 340px); }
+.preview-meta { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.adjustments { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.history-actions { display: flex; gap: 6px; }
+.history-actions button { width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
+.adjustments label { display: flex; align-items: center; gap: 7px; font-size: 12px; white-space: nowrap; }
+.adjustments label:has(input:disabled) { opacity: .55; }
+.range { position: relative; display: inline-flex; padding-bottom: 4px; }
+.range::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 2px; height: 4px; background: #98a5bf; border-radius: 2px; transform: translateX(-50%); pointer-events: none; }
+.range input { width: clamp(80px, 8vw, 115px); margin: 0; accent-color: var(--accent); }
+.empty { text-align: center; color: var(--subtle); padding: 15px; }
+.batch { background: var(--accent); border: 1px solid var(--accent); border-radius: 9px; color: white; font-weight: 650; min-height: 42px; width: 100%; text-align: center; }
+.batch:not(:disabled):hover { background: #2841ba; }
+.formats { list-style: none; margin: 9px 0 0; padding: 0; }
+.format { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #e9edf4; }
+.format:last-child { border-bottom: 0; }
+.format.active { background: #f0f3ff; border-radius: 8px; border-bottom-color: transparent; }
+.choose { display: flex; text-align: left; align-items: center; gap: 9px; border: 0; background: transparent; min-width: 0; padding: 5px 8px; border-radius: 7px; }
+.choose:hover { color: var(--accent); }
+.choose canvas { width: 21px; height: 32px; object-fit: contain; border-radius: 3px; flex: none; }
+.choose strong, .choose small { display: block; font-variant-numeric: tabular-nums; }
+.choose strong { font-size: 12px; white-space: nowrap; }
+.choose small, .download { font-size: 11px; }
+.download { margin-right: 6px; }
+.output-note { padding-top: 11px; }
+.status { position: fixed; z-index: 2; bottom: 19px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); width: max-content; color: white; background: #1e2b45; padding: 9px 15px; border-radius: 8px; box-shadow: 0 6px 20px #1e2b4530; }
+dialog { max-width: 95vw; max-height: 95vh; border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: var(--ink); }
+dialog::backdrop { background: #131b30ad; }
+.dialog-heading { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 9px; }
+dialog canvas { display: block; width: auto; height: auto; max-width: min(85vw, 780px); max-height: 80vh; margin: auto; }
+@media (max-width: 920px) {
+  .workspace { grid-template-columns: minmax(205px,.8fr) minmax(280px,1.3fr); }
+  .exports { grid-column: 1 / -1; }
+  .formats { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+}
+@media (max-width: 620px) {
+  .top-inner { padding: 14px 12px; }
+  .workspace { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+  .panel { padding: 14px; }
+  .formats { display: block; }
+  .stage { min-height: 320px; }
+  .device canvas { height: min(53vh, 490px); }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-inner"><div class="brand">
+  <span class="brand-mark" aria-hidden="true">▣</span>
+  <div><h1>游戏闪屏生成器</h1><small>活动素材工作台</small></div>
+</div></div></header>
+<main class="workspace">
+  <section class="panel" aria-labelledby="upload-title">
+    <div class="panel-head"><h2 id="upload-title">上传海报</h2></div>
+    <label class="drop" id="drop">
+      <input id="poster" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" aria-label="上传活动海报" aria-describedby="poster-hint">
+      <span class="upload-mark" aria-hidden="true">↑</span>
+      <strong>点击上传或拖入海报</strong>
+      <small>JPG、PNG、WebP · 最大 30 MB</small>
+    </label>
+    <p class="muted hint" id="poster-hint">建议使用 1642 × 2611 的竖版海报，标题和主体尽量居中。</p>
+    <div class="source" id="source" hidden><img id="source-thumb" alt=""><div><strong id="source-name"></strong><small id="source-size"></small></div></div>
+    <div class="subpanel" id="sample-section" hidden><h3>Figma 模板示例</h3><div class="sample-list"><button class="sample" id="sample-race" type="button"><img alt=""><strong>缤纷消消乐</strong></button><button class="sample" id="sample-dragon" type="button"><img alt=""><strong>九法降妖</strong></button><button class="sample" id="sample-pet" type="button"><img alt=""><strong>萌宠觅食</strong></button></div></div>
+    <div class="subpanel">
+      <div class="gradient-heading">
+        <h3>底部渐变</h3>
+        <label class="gradient-switch">
+          <input id="gradient-enabled" type="checkbox" role="switch" aria-label="底部渐变" checked>
+          <span id="gradient-state" aria-hidden="true">开启</span>
+        </label>
+      </div>
+      <label class="gradient-choice">配色
+        <select id="gradient-preset">
+          <option value="auto">自动取色</option>
+          <option value="blue">深海蓝</option>
+          <option value="green">森林绿</option>
+          <option value="amber">琥珀金</option>
+          <option value="red">暗酒红</option>
+          <option value="purple">暮夜紫</option>
+          <option value="gray">石墨灰</option>
+        </select>
+      </label>
+      <div id="swatches" class="swatches" aria-label="渐变配色"></div>
+      <p id="gradient-hint" class="muted hint">自动从海报下半部取色，应用于竖版素材。</p>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="preview-title">
+    <div class="panel-head"><h2 id="preview-title">实时预览</h2><button id="enlarge" class="secondary" type="button" disabled>放大预览</button></div>
+    <div class="stage">
+      <p id="empty" class="empty">上传海报后即可预览</p>
+      <div id="device" class="device" hidden><canvas id="preview" role="img" aria-label="闪屏素材预览"></canvas></div>
+    </div>
+    <div id="preview-meta" class="preview-meta" hidden>
+      <strong id="active-size"></strong>
+      <div class="adjustments">
+        <div class="history-actions" role="group" aria-label="修改记录">
+          <button class="secondary" id="undo" type="button" aria-label="后退一步" title="后退一步" disabled>↶</button>
+          <button class="secondary" id="redo" type="button" aria-label="前进一步" title="前进一步" disabled>↷</button>
+        </div>
+        <label>缩放 <span class="range"><input id="zoom" type="range" min="-100" max="100" value="0"></span></label>
+        <label>上下位置 <span class="range"><input id="position" type="range" min="-100" max="100" value="0"></span></label>
+      </div>
+    </div>
+  </section>
+  <section class="panel exports" aria-labelledby="export-title">
+    <div class="panel-head"><h2 id="export-title">素材导出</h2><small>6 个尺寸</small></div>
+    <button class="batch" id="all" type="button" disabled>一键导出全部 · ZIP</button>
+    <ul class="formats" id="formats"></ul>
+    <p class="muted hint output-note">导出为 JPG，自动符合 Figma 标注的大小上限。</p>
+  </section>
+</main>
+<dialog id="dialog"><div class="dialog-heading"><strong id="dialog-size"></strong><form method="dialog"><button class="secondary" type="submit">关闭</button></form></div><canvas id="dialog-canvas" role="img" aria-label="闪屏素材大图"></canvas></dialog>
+<div class="status" id="status" role="status" aria-live="polite" hidden></div>
+<script>
+function crc32(bytes){let crc=-1;for(const byte of bytes){crc^=byte;for(let b=0;b<8;b++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return(crc^-1)>>>0;}
+function le(v,n){const a=new Uint8Array(n),d=new DataView(a.buffer);n===2?d.setUint16(0,v,true):d.setUint32(0,v,true);return a;}
+// Reuses the existing project's ZIP approach, with UTF-8 filenames explicitly flagged.
+function zip(files){const parts=[],central=[],enc=new TextEncoder();let offset=0;for(const f of files){const name=enc.encode(f.name),bytes=f.bytes,crc=crc32(bytes),local=[le(0x04034b50,4),le(20,2),le(0x800,2),le(0,2),le(0,2),le(0,2),le(crc,4),le(bytes.length,4),le(bytes.length,4),le(name.length,2),le(0,2),name,bytes];parts.push(...local);central.push(le(0x02014b50,4),le(20,2),le(20,2),le(0x800,2),le(0,2),le(0,2),le(0,2),le(crc,4),le(bytes.length,4),le(bytes.length,4),le(name.length,2),le(0,2),le(0,2),le(0,2),le(0,2),le(0,4),le(offset,4),name);offset+=local.reduce((n,a)=>n+a.length,0);}const cs=central.reduce((n,a)=>n+a.length,0);return new Blob([...parts,...central,le(0x06054b50,4),le(0,2),le(0,2),le(files.length,2),le(files.length,2),le(cs,4),le(offset,4),le(0,2)],{type:'application/zip'});}
+
+</script>
+<script>
+"use strict";
+
+const SAMPLES = { race: "./race.jpeg", dragon: "./dragon.png", pet: "./pet.png" };
+const MASTER_WIDTH = 1642;
+const MASTER_HEIGHT = 2611;
+const formats = [
+  { width: 1126, height: 2438, limit: 200, artWidth: 1642, x: -258, y: -86, fade: [.662, .927] },
+  { width: 1080, height: 2340, limit: 200, artWidth: 1543, x: -232, fade: [.662, .927] },
+  { width: 750, height: 1334, limit: 200, artWidth: 1034, x: -142, y: -66, fade: [.67, .99] },
+  { width: 720, height: 1280, limit: 200, artWidth: 1034, x: -142, y: -94, fade: [.67, .99] },
+  { width: 640, height: 1136, limit: 150, artWidth: 785, x: -72, y: -56, fade: [.67, 1] },
+  { width: 480, height: 480, artWidth: 575, x: -48, y: -100 }
+];
+const get = id => document.getElementById(id);
+const dimensions = format => `${format.width} × ${format.height}`;
+const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+const rgb = (color, opacity = 1) => `rgba(${color.join(",")},${opacity})`;
+const hex = color => "#" + color.map(channel => channel.toString(16).padStart(2, "0")).join("").toUpperCase();
+const mix = (a, b, amount) => a.map((channel, i) => Math.round(channel * (1 - amount) + b[i] * amount));
+
+let artwork = null;
+let active = 0;
+let pending = 0;
+let loading = false;
+let exporting = false;
+let noticeTimer;
+let renderFrame;
+const defaultAdjustment = { position: 0, zoom: 0 };
+const adjustments = formats.map(() => defaultAdjustment);
+const history = formats.map(() => ({ entries: [defaultAdjustment], cursor: 0 }));
+const cache = new Map();
+const gradientPresets = {
+  blue: [51, 105, 174],
+  green: [68, 133, 94],
+  amber: [186, 117, 48],
+  red: [166, 63, 79],
+  purple: [127, 85, 173],
+  gray: [110, 116, 126]
+};
+let gradientSettings = { enabled: true, preset: "auto" };
+
+function canvas(width, height) {
+  const result = document.createElement("canvas");
+  result.width = width;
+  result.height = height;
+  return result;
+}
+
+function notify(message, sticky = false) {
+  clearTimeout(noticeTimer);
+  const status = get("status");
+  status.textContent = message;
+  status.hidden = false;
+  if (!sticky) noticeTimer = setTimeout(() => { status.hidden = true; }, 4800);
+}
+
+// Weight chromatic pixels near the transition and bottom. Adjacent hue bins
+// share votes so red, for example, also includes hues close to the 0° boundary.
+function pickPalette(image) {
+  const sample = canvas(112, 112);
+  const ctx = sample.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, sample.width, sample.height);
+  const { data } = ctx.getImageData(0, 0, sample.width, sample.height);
+  const bins = Array.from({ length: 24 }, () => ({ weight: 0, color: [0, 0, 0] }));
+  const neutral = { weight: 0, color: [0, 0, 0] };
+
+  for (let index = 0; index < data.length; index += 4) {
+    const pixel = index / 4;
+    const y = Math.floor(pixel / sample.width) / (sample.height - 1);
+    const x = (pixel % sample.width) / (sample.width - 1);
+    const alpha = data[index + 3] / 255;
+    if (alpha < .15) continue;
+
+    const color = [data[index], data[index + 1], data[index + 2]];
+    const hi = Math.max(...color);
+    const lo = Math.min(...color);
+    const chroma = hi - lo;
+    const weight = alpha * (.1 + 3 * Math.pow(y, 2.6)) * (1 - .45 * Math.abs(2 * x - 1));
+    neutral.weight += weight;
+    color.forEach((channel, i) => { neutral.color[i] += channel * weight; });
+    if (chroma < 12 || hi < 32) continue;
+
+    const [r, g, b] = color;
+    let hue;
+    if (hi === r) hue = (g - b) / chroma;
+    else if (hi === g) hue = 2 + (b - r) / chroma;
+    else hue = 4 + (r - g) / chroma;
+    const hueIndex = ((hue + 6) % 6) * 4;
+    const vote = weight * Math.sqrt(chroma / 255);
+    for (const [binOffset, multiplier] of [[0, 1 - hueIndex % 1], [1, hueIndex % 1]]) {
+      const bin = bins[(Math.floor(hueIndex) + binOffset) % bins.length];
+      bin.weight += vote * multiplier;
+      color.forEach((channel, i) => { bin.color[i] += channel * vote * multiplier; });
+    }
+  }
+
+  let dominant = neutral;
+  let bestWeight = neutral.weight * .085;
+  bins.forEach((_, index) => {
+    const neighborhood = [-1, 0, 1].map(offset => bins[(index + offset + bins.length) % bins.length]);
+    const weight = neighborhood.reduce((total, bin) => total + bin.weight, 0);
+    if (weight <= bestWeight) return;
+    bestWeight = weight;
+    dominant = { weight, color: [0, 1, 2].map(i => neighborhood.reduce((total, bin) => total + bin.color[i], 0)) };
+  });
+  const base = dominant.weight ? dominant.color.map(value => Math.round(value / dominant.weight)) : [51, 60, 77];
+  return gradientPalette(base);
+}
+
+function gradientPalette(base) {
+  const deep = mix(base, [0, 0, 0], .57);
+  return [base, mix(base, deep, .47), deep];
+}
+
+function selectedPalette(source, settings) {
+  return settings.preset === "auto" ? source.palette : gradientPalette(gradientPresets[settings.preset]);
+}
+
+function framing(source, format, { position, zoom }) {
+  const ratio = source.image.naturalWidth / source.image.naturalHeight;
+  const masterRatio = MASTER_WIDTH / MASTER_HEIGHT;
+  const figureWidth = Math.max(format.width, format.artWidth * Math.min(1, ratio / masterRatio));
+  const cover = Math.max(format.width / source.image.naturalWidth, format.height / source.image.naturalHeight);
+  const fit = Math.max(cover, figureWidth / source.image.naturalWidth);
+  const fittedWidth = source.image.naturalWidth * fit;
+  const fittedHeight = source.image.naturalHeight * fit;
+  const zoomOut = Math.min(1 - cover / fit, .25);
+  const scale = 1 + zoom * (zoom < 0 ? zoomOut : .25);
+  const width = fittedWidth * scale;
+  const height = fittedHeight * scale;
+  const overflow = Math.max(0, height - format.height);
+  const masterOverflow = format.artWidth / masterRatio - format.height;
+  const basePosition = format.y === undefined ? .5 : clamp(-format.y / Math.max(1, masterOverflow), 0, 1);
+  const fittedTop = -Math.max(0, fittedHeight - format.height) * basePosition;
+  const centeredTop = clamp((fittedTop - format.height / 2) * scale + format.height / 2, -overflow, 0);
+  const y = position < 0 ? centeredTop * (1 + position) : centeredTop + (-overflow - centeredTop) * position;
+  const xBias = (format.x + (format.artWidth - format.width) / 2) * width / format.artWidth;
+  return { x: clamp((format.width - width) / 2 + xBias, Math.min(0, format.width - width), 0), y, width, height, overflow };
+}
+
+function render(target, source, index, adjustment, scale = 1, settings = gradientSettings) {
+  const format = formats[index];
+  target.width = Math.round(format.width * scale);
+  target.height = Math.round(format.height * scale);
+  const ctx = target.getContext("2d", { alpha: false });
+  ctx.scale(target.width / format.width, target.height / format.height);
+  ctx.imageSmoothingQuality = "high";
+  const geometry = framing(source, format, adjustment);
+  ctx.fillStyle = rgb(source.palette[0]);
+  ctx.fillRect(0, 0, format.width, format.height);
+  ctx.drawImage(source.image, geometry.x, geometry.y, geometry.width, geometry.height);
+
+  if (settings.enabled && format.fade) {
+    const [base, middle, deep] = selectedPalette(source, settings);
+    const [start, stop] = format.fade;
+    const gradient = ctx.createLinearGradient(0, start * format.height, 0, stop * format.height);
+    gradient.addColorStop(0, rgb(base, 0));
+    gradient.addColorStop(.32, rgb(middle, .22));
+    gradient.addColorStop(.68, rgb(deep, .73));
+    gradient.addColorStop(1, rgb(deep));
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, start * format.height, format.width, (1 - start) * format.height);
+  }
+}
+
+const rows = formats.map((format, index) => {
+  const row = document.createElement("li");
+  row.className = "format";
+  const choose = document.createElement("button");
+  choose.type = "button";
+  choose.className = "choose";
+  choose.setAttribute("aria-label", `预览 ${dimensions(format)}`);
+  const thumbnail = canvas(28, 38);
+  thumbnail.setAttribute("aria-hidden", "true");
+  thumbnail.hidden = true;
+  const copy = document.createElement("span");
+  const size = document.createElement("strong");
+  size.textContent = dimensions(format);
+  const note = document.createElement("small");
+  note.textContent = format.limit ? `JPG · ≤ ${format.limit} KB` : "JPG · 方形";
+  copy.append(size, note);
+  choose.append(thumbnail, copy);
+  choose.addEventListener("click", () => { active = index; showPreview(); });
+
+  const download = document.createElement("button");
+  download.type = "button";
+  download.className = "download";
+  download.textContent = "导出";
+  download.setAttribute("aria-label", `导出 ${dimensions(format)} JPG`);
+  download.addEventListener("click", () => exportAsset(index));
+  row.append(choose, download);
+  get("formats").append(row);
+  return { row, choose, thumbnail, download };
+});
+
+function updateControls() {
+  const disabled = !artwork || exporting || loading;
+  get("all").disabled = disabled;
+  get("all").textContent = exporting ? "正在准备素材…" : "一键导出全部 · ZIP";
+  rows.forEach(({ download }) => { download.disabled = disabled; });
+  rows.forEach(({ choose }) => { choose.disabled = !artwork; });
+  get("enlarge").disabled = !artwork;
+  get("position").disabled = disabled || framing(artwork, formats[active], adjustments[active]).overflow < 1;
+  get("zoom").disabled = disabled;
+  get("gradient-enabled").disabled = disabled;
+  get("gradient-preset").disabled = disabled || !gradientSettings.enabled;
+  updateHistoryControls();
+}
+
+function updateHistoryControls() {
+  const { entries, cursor } = history[active];
+  const disabled = !artwork || exporting || loading;
+  get("undo").disabled = disabled || cursor === 0;
+  get("redo").disabled = disabled || cursor === entries.length - 1;
+}
+
+function showPreview() {
+  updateHistoryControls();
+  rows.forEach(({ row, choose }, i) => {
+    row.classList.toggle("active", Boolean(artwork) && active === i);
+    choose.setAttribute("aria-pressed", String(Boolean(artwork) && active === i));
+  });
+  if (!artwork) return;
+
+  const format = formats[active];
+  get("preview").setAttribute("aria-label", `${dimensions(format)} 闪屏素材预览`);
+  const adjustment = adjustments[active];
+  render(get("preview"), artwork, active, adjustment, Math.min(1, 1100 / format.height));
+  get("device").classList.toggle("square", format.width === format.height);
+  get("active-size").textContent = `${dimensions(format)} px`;
+  get("position").value = Math.round(adjustment.position * 100);
+  get("zoom").value = Math.round(adjustment.zoom * 100);
+  get("position").disabled = loading || exporting || framing(artwork, format, adjustment).overflow < 1;
+  get("device").hidden = false;
+  get("preview-meta").hidden = false;
+  get("empty").hidden = true;
+}
+
+function setArtwork(source) {
+  artwork = source;
+  adjustments.fill(defaultAdjustment);
+  history.forEach(record => {
+    record.entries = [defaultAdjustment];
+    record.cursor = 0;
+  });
+  cache.clear();
+  get("source-thumb").src = source.image.src;
+  get("source-name").textContent = source.name;
+  get("source-size").textContent = `${source.image.naturalWidth} × ${source.image.naturalHeight} px`;
+  get("source").hidden = false;
+  refreshGradientPreview();
+  for (const key of Object.keys(SAMPLES)) {
+    get(`sample-${key}`).setAttribute("aria-pressed", String(source.name.startsWith({ race: "缤纷消消乐", dragon: "九法降妖", pet: "萌宠觅食" }[key])));
+  }
+}
+
+function refreshGradientPreview() {
+  const { enabled, preset } = gradientSettings;
+  get("gradient-state").textContent = enabled ? "开启" : "关闭";
+  get("gradient-hint").textContent = enabled
+    ? (preset === "auto" ? "自动从海报下半部取色，应用于竖版素材。" : "所选配色应用于全部竖版素材。")
+    : "预览和导出均关闭底部渐变。";
+  get("swatches").hidden = !enabled;
+  if (!artwork) return;
+  get("swatches").replaceChildren(...selectedPalette(artwork, gradientSettings).map((color, index) => {
+    const label = document.createElement("div");
+    label.className = "swatch";
+    const shade = document.createElement("span");
+    shade.style.backgroundColor = rgb(color);
+    shade.setAttribute("aria-hidden", "true");
+    label.append(shade, hex(color));
+    label.setAttribute("aria-label", `${["主色", "过渡色", "底色"][index]} ${hex(color)}`);
+    return label;
+  }));
+  rows.forEach(({ thumbnail }, index) => {
+    render(thumbnail, artwork, index, adjustments[index], 78 / formats[index].height);
+    thumbnail.hidden = false;
+  });
+  showPreview();
+}
+
+async function loadArtwork(url, name, local = false, quiet = false) {
+  const request = ++pending;
+  loading = true;
+  updateControls();
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    if (request !== pending) return;
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error("图片没有有效尺寸");
+    const prior = artwork;
+    setArtwork({ image, name, local, palette: pickPalette(image) });
+    if (prior?.local) URL.revokeObjectURL(prior.image.src);
+    if (!quiet) notify("海报已更新，可以预览和导出。");
+  } catch {
+    if (local) URL.revokeObjectURL(url);
+    if (request === pending) notify("无法读取这张图片，请换一张 JPG、PNG 或 WebP。");
+  } finally {
+    if (request === pending) {
+      loading = false;
+      updateControls();
+    } else if (local) {
+      URL.revokeObjectURL(url);
+    }
+  }
+}
+
+function acceptFile(file) {
+  if (!file) return;
+  if (file.type && !/^image\/(jpeg|png|webp)$/.test(file.type) || !file.type && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+    notify("请选择 JPG、PNG 或 WebP 图片。");
+    return;
+  }
+  if (file.size > 30_000_000) {
+    notify("图片超过 30 MB，请缩小文件后重新上传。");
+    return;
+  }
+  loadArtwork(URL.createObjectURL(file), file.name, true);
+}
+
+function encodeJpeg(image, quality) {
+  return new Promise((resolve, reject) => {
+    image.toBlob(blob => {
+      if (blob && blob.type === "image/jpeg") resolve(blob);
+      else reject(new Error("浏览器无法生成 JPG"));
+    }, "image/jpeg", quality);
+  });
+}
+
+async function constrainedJpeg(image, limit) {
+  const highQuality = await encodeJpeg(image, .96);
+  if (!limit || highQuality.size <= limit) return highQuality;
+  let low = .03;
+  let high = .96;
+  let best = await encodeJpeg(image, low);
+  // Very noisy sources can exceed the budget even at minimum JPEG quality.
+  // Reduce high-frequency detail in that case, keeping output dimensions fixed.
+  if (best.size > limit) {
+    const reduced = canvas(1, 1);
+    const softened = canvas(image.width, image.height);
+    for (const factor of [.75, .5, .25, .125]) {
+      reduced.width = Math.max(1, Math.round(image.width * factor));
+      reduced.height = Math.max(1, Math.round(image.height * factor));
+      reduced.getContext("2d").drawImage(image, 0, 0, reduced.width, reduced.height);
+      softened.getContext("2d").drawImage(reduced, 0, 0, softened.width, softened.height);
+      best = await encodeJpeg(softened, low);
+      if (best.size <= limit) { image = softened; break; }
+    }
+    if (best.size > limit) throw new Error("无法在指定大小内生成素材");
+  }
+
+  for (let pass = 0; pass < 11; pass++) {
+    const quality = (low + high) / 2;
+    const candidate = await encodeJpeg(image, quality);
+    if (candidate.size <= limit) {
+      low = quality;
+      best = candidate;
+    } else {
+      high = quality;
+    }
+  }
+  return best;
+}
+
+const safeName = name => name.replace(/\.[^.]+$/, "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim().slice(0, 80) || "活动海报";
+
+async function asset(source, index, adjustment, settings = gradientSettings) {
+  const cached = cache.get(index);
+  if (source === artwork && cached?.adjustment === adjustment && cached.settings === settings) return cached;
+  const format = formats[index];
+  const output = canvas(format.width, format.height);
+  render(output, source, index, adjustment, 1, settings);
+  const blob = await constrainedJpeg(output, format.limit && format.limit * 1000);
+  const result = { adjustment, settings, name: `${safeName(source.name)}-闪屏-${format.width}x${format.height}.jpg`, blob };
+  if (source === artwork && adjustments[index] === adjustment && gradientSettings === settings) cache.set(index, result);
+  return result;
+}
+
+function save(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+async function exportAsset(index) {
+  if (!artwork || exporting || loading) return;
+  const source = artwork;
+  const currentAdjustments = [...adjustments];
+  const currentGradient = gradientSettings;
+  const batch = index === undefined;
+  exporting = true;
+  updateControls();
+  try {
+    if (batch) {
+      const files = [];
+      for (const [step] of formats.entries()) {
+        notify(`正在打包素材 ${step + 1} / ${formats.length}`, true);
+        const { name, blob } = await asset(source, step, currentAdjustments[step], currentGradient);
+        files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      save(zip(files), `${safeName(source.name)}-闪屏素材.zip`);
+      notify("已生成包含 6 张 JPG 的 ZIP。");
+    } else {
+      notify(`正在生成 ${dimensions(formats[index])}`, true);
+      const { name, blob } = await asset(source, index, currentAdjustments[index], currentGradient);
+      save(blob, name);
+      notify(`已生成 ${dimensions(formats[index])} · ${(blob.size / 1000).toFixed(1)} KB`);
+    }
+  } catch {
+    notify("导出失败，请重试。");
+  } finally {
+    exporting = false;
+    updateControls();
+  }
+}
+
+get("poster").addEventListener("change", event => {
+  acceptFile(event.target.files[0]);
+  event.target.value = "";
+});
+const drop = get("drop");
+for (const type of ["dragenter", "dragover"]) drop.addEventListener(type, event => {
+  event.preventDefault();
+  drop.classList.add("over");
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+});
+drop.addEventListener("dragleave", event => {
+  if (!drop.contains(event.relatedTarget)) drop.classList.remove("over");
+});
+drop.addEventListener("drop", event => {
+  event.preventDefault();
+  drop.classList.remove("over");
+  acceptFile(event.dataTransfer?.files[0]);
+});
+
+function applyAdjustment(index, adjustment) {
+  adjustments[index] = adjustment;
+  cache.delete(index);
+  render(rows[index].thumbnail, artwork, index, adjustment, 78 / formats[index].height);
+  cancelAnimationFrame(renderFrame);
+  renderFrame = requestAnimationFrame(showPreview);
+}
+
+function commitAdjustment() {
+  const record = history[active];
+  const previous = record.entries[record.cursor];
+  const current = adjustments[active];
+  if (current.position === previous.position && current.zoom === previous.zoom) return;
+  record.entries.splice(record.cursor + 1, record.entries.length, current);
+  record.cursor++;
+  updateHistoryControls();
+}
+
+function stepHistory(direction) {
+  const record = history[active];
+  const next = record.cursor + direction;
+  if (!artwork || exporting || loading || next < 0 || next >= record.entries.length) return;
+  record.cursor = next;
+  applyAdjustment(active, record.entries[next]);
+  updateHistoryControls();
+}
+
+get("undo").addEventListener("click", () => stepHistory(-1));
+get("redo").addEventListener("click", () => stepHistory(1));
+for (const key of ["position", "zoom"]) {
+  const slider = get(key);
+  let pointerId = null;
+  slider.addEventListener("pointerdown", event => { pointerId = event.pointerId; });
+  for (const type of ["pointerup", "pointercancel"]) {
+    window.addEventListener(type, event => {
+      if (event.pointerId === pointerId) pointerId = null;
+    });
+  }
+  slider.addEventListener("blur", () => { pointerId = null; });
+  slider.addEventListener("input", () => {
+    const index = active;
+    const raw = slider.valueAsNumber;
+    const value = pointerId !== null && Math.abs(raw) <= 3 ? 0 : raw;
+    slider.value = value;
+    if (!artwork || slider.disabled || adjustments[index][key] === value / 100) return;
+    applyAdjustment(index, { ...adjustments[index], [key]: value / 100 });
+  });
+  slider.addEventListener("change", commitAdjustment);
+}
+get("enlarge").addEventListener("click", () => {
+  if (!artwork) return;
+  get("dialog-size").textContent = `${dimensions(formats[active])} px`;
+  render(get("dialog-canvas"), artwork, active, adjustments[active]);
+  get("dialog").showModal();
+});
+get("dialog").addEventListener("click", event => {
+  if (event.target === event.currentTarget) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+  }
+});
+for (const id of ["gradient-enabled", "gradient-preset"]) {
+  get(id).addEventListener("change", () => {
+    gradientSettings = {
+      enabled: get("gradient-enabled").checked,
+      preset: get("gradient-preset").value
+    };
+    refreshGradientPreview();
+    updateControls();
+  });
+}
+get("all").addEventListener("click", () => exportAsset());
+get("sample-race").addEventListener("click", () => loadArtwork(SAMPLES.race, "缤纷消消乐 · Figma 示例"));
+get("sample-dragon").addEventListener("click", () => loadArtwork(SAMPLES.dragon, "九法降妖 · Figma 示例"));
+get("sample-pet").addEventListener("click", () => loadArtwork(SAMPLES.pet, "萌宠觅食 · Figma 示例"));
+updateControls();
+if (Object.values(SAMPLES).every(sample => Boolean(sample))) {
+  for (const [key, url] of Object.entries(SAMPLES)) {
+    get(`sample-${key}`).querySelector("img").src = url;
+  }
+  get("sample-section").hidden = false;
+  loadArtwork(SAMPLES.race, "缤纷消消乐 · Figma 示例", false, true);
+}
+</script>
+</body>
+</html>
